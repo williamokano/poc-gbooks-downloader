@@ -15,4 +15,17 @@ Maybe it's not the best way of doing this, also this repository have no intentio
 ## How to run
 You need chrome driver. If using mac, `brew cask install chromedriver`, if not, just search for chrome driver for you OS and install it.
 
-Just type `npm start`. Currently it is fixed to only one book.
+```bash
+Usage: node index.js -u [url]
+
+Options:
+  --version       Show version number                                  [boolean]
+  -u, --url       Google books book URL                               [required]
+  -o, --output    Output dir
+                                                    [default: "/Users/username"]
+  -f, --filename  Output file name                    [default: "generated.pdf"]
+  -h, --help      Show help                                            [boolean]
+
+Examples:
+  node index.js -u https://books.google.co.jp/books?id=xpto download the available pages as pdf
+```
