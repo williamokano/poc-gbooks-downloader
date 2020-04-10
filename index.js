@@ -110,10 +110,7 @@ async function downloadBook(url) {
         console.log('Download complete')
         console.log('generating pdf')
         generatePdf(destinations)
-
-        await driver.sleep(1000)
     } finally {
-        await driver.sleep(3000)
         await driver.quit();
     }
 }
