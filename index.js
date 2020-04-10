@@ -5,6 +5,23 @@ const fs = require('fs-extra')
 const path = require('path')
 const download = require('image-downloader')
 const PDFDocument = require('pdfkit')
+const argv = require('yargs')
+    .usage('Usage: node $0 -u [url]')
+    .example('node $0 -u https://books.google.co.jp/books?id=xpto', 'download the available pages as pdf')
+    .alias('u', 'url')
+    .nargs('u', 1)
+    .describe('u', 'Google books book URL')
+    .demandOption(['u'])
+    .alias('o', 'output')
+    .describe('o', 'Output dir')
+    .default('o', process.cwd())
+    .alias('f', 'filename')
+    .describe('f', 'Output file name')
+    .default('f', 'generated.pdf')
+    .help('h')
+    .alias('h', 'help')
+    .epilog('copyright 1989')
+    .argv;
 
 Array.prototype.pmap = async function (callback) {
     return Promise.all(this.map(callback))
@@ -102,7 +119,9 @@ async function downloadBook(url) {
 }
 
 function generatePdf(destinations) {
-    const pdfDestination = path.join(process.cwd(), 'generated.pdf')
+    const filename = argv.filename.endsWith('.pdf') ? argv.filename : `${argv.filename}.pdf`
+    const pdfDestination = path.join(argv.output, filename)
+    console.log(`Saving PDF file at: ${pdfDestination}`)
 
     if (fs.existsSync(pdfDestination)) {
         fs.removeSync(pdfDestination)
@@ -181,7 +200,7 @@ async function getButtonsSelectors(driver) {
     return Object.fromEntries(fields.map((_, i) => [fields[i], buttonsIds[i]]))
 }
 
-downloadBook('https://books.google.co.jp/books?id=WoFIAgAAQBAJ&printsec=frontcover&dq=isbn:9784384057522&hl=&cd=1&source=gbs_api#v=onepage&q&f=true')
+downloadBook(argv.url)
 
 // Just to avoid download
 /*
