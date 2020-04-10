@@ -1,6 +1,10 @@
-const { Builder, By, Key, until } = require('selenium-webdriver')
+const { Builder, By, until } = require('selenium-webdriver')
 const urlParse = require('url-parse')
 const querystring = require('querystring')
+const fs = require('fs-extra')
+const path = require('path')
+const download = require('image-downloader')
+const PDFDocument = require('pdfkit')
 
 Array.prototype.pmap = async function (callback) {
     return Promise.all(this.map(callback))
@@ -10,11 +14,28 @@ Array.prototype.pfilter = async function (callback) {
     return Promise.all(this.filter(callback))
 }
 
+function buildOutputDir() {
+    const outputdir = getOutputDir()
+    console.log(`Output dir: ${outputdir}`)
+
+    if (fs.existsSync(outputdir)) {
+        fs.removeSync(outputdir)
+    }
+
+    fs.mkdirSync(outputdir)
+}
+
+function getOutputDir() {
+    return outputdir = path.join(process.cwd(), 'output_images')
+}
+
 async function downloadBook(url) {
     const { query } = urlParse(url)
     const { id: bookId } = querystring.decode(query.substring(1))
 
     console.log(`Downloading pages for bookId: ${bookId}`)
+    console.log(`Current work dir: ${process.cwd()}`)
+    buildOutputDir()
 
     let driver = await new Builder().forBrowser('chrome').build();
 
@@ -27,45 +48,81 @@ async function downloadBook(url) {
         let currentPage = await getCurrentPage(driver)
         const allPages = new Set()
 
-        // while (oldPage !== currentPage) {
+        while (oldPage !== currentPage) {
+            // Wait for the page to load pages
+            await driver.sleep(2000)
+            console.log(`Fetching for page ${currentPage}`)
 
-        console.log(`Fetching for page ${currentPage}`)
-        // Update old page
-        oldPage = currentPage
+            // Update old page
+            oldPage = currentPage
 
-        // Get images to be downloaded
-        const allImages = await driver.findElements(By.tagName('img'))
+            // Get images to be downloaded
+            const allImages = await driver.findElements(By.tagName('img'))
 
-        const imagesUrl = await allImages.pmap(img => img.getAttribute("src"))
-        const bookImages = imagesUrl.filter(url => url.includes(bookId))
-        bookImages.forEach(url => {
-            allPages.add(url)
-            console.log(`Page found: ${url}`)
-        })
-        console.log(`Total unique pages: ${allPages.size}`)
+            const imagesUrl = await allImages.pmap(img => img.getAttribute("src"))
+            const bookImages = imagesUrl.filter(url => url.includes(bookId))
+            bookImages.forEach(url => {
+                allPages.add(url)
+                console.log(`Page found: ${url}`)
+            })
+            console.log(`Total unique pages: ${allPages.size}`)
 
-        // Move 3 pages ahead
-        await nextPageButton.click()
-        await nextPageButton.click()
-        await nextPageButton.click()
-        currentPage = await getCurrentPage(driver)
+            // Move 3 pages ahead
+            await nextPageButton.click()
+            await nextPageButton.click()
+            await nextPageButton.click()
+            currentPage = await getCurrentPage(driver)
 
-        await driver.sleep(2000)
-
-        // }
+        }
 
         console.log('No more pages to be found...')
         console.log('Preparing for download')
         // Download all images
-        const parsedObjectsToDownload = parseToDownloadObject(allPages)
-        console.log(parsedObjectsToDownload)
+        const destinationsPromises = parseToDownloadObject(allPages).map(page => {
+            console.log(`Downloading page: ${page.pageName}`)
+            const destination = `${path.join(getOutputDir(), page.pageName)}.png`
+            console.log(`Saving to path: ${destination}`)
 
+            const options = { url: page.downloadUrl, dest: destination }
+            return download.image(options)
+                .then(({ filename }) => console.log(`Downloaded ${filename}`))
+                .then(() => destination)
+        })
+
+        const destinations = await Promise.all(destinationsPromises)
         console.log('Download complete')
+        console.log('generating pdf')
+        generatePdf(destinations)
+
         await driver.sleep(1000)
     } finally {
         await driver.sleep(3000)
         await driver.quit();
     }
+}
+
+function generatePdf(destinations) {
+    const pdfDestination = path.join(process.cwd(), 'generated.pdf')
+
+    if (fs.existsSync(pdfDestination)) {
+        fs.removeSync(pdfDestination)
+    }
+
+    const pdf = new PDFDocument({ autoFirstPage: false, size: 'A4', margin: 0 })
+    pdf.pipe(fs.createWriteStream(pdfDestination))
+
+    destinations.sort().forEach(filename => {
+        pdf
+            .addPage()
+            .image(filename, {
+                fit: [pdf.page.width, pdf.page.height],
+                align: 'center',
+                valign: 'center',
+
+            })
+    })
+
+    pdf.end()
 }
 
 function buildDownloadUrl(originalUrl, newQueryString) {
@@ -125,17 +182,12 @@ async function getButtonsSelectors(driver) {
 }
 
 downloadBook('https://books.google.co.jp/books?id=WoFIAgAAQBAJ&printsec=frontcover&dq=isbn:9784384057522&hl=&cd=1&source=gbs_api#v=onepage&q&f=true')
+
+// Just to avoid download
 /*
-(async function example() {
-    let driver = await new Builder().forBrowser('chrome').build();
-    try {
-        await driver.get('https://books.google.co.jp/books?id=WoFIAgAAQBAJ&printsec=frontcover&dq=isbn:9784384057522&hl=&cd=1&source=gbs_api#v=onepage&q&f=true');
-        const images = await driver.findElements(By.css('img'))
-        const urlPromises = images.map(webElement => webElement.getAttribute("src"))
-        const urls = await Promise.all(urlPromises)
-        console.log(urls)
-    } finally {
-        await driver.quit();
-    }
-})();
+const files = fs.readdirSync(getOutputDir()).map(file => {
+    return `${getOutputDir()}/${file}`
+})
+
+generatePdf(files)
 */
