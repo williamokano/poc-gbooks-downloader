@@ -7,7 +7,7 @@ const download = require('image-downloader')
 const PDFDocument = require('pdfkit')
 const argv = require('yargs')
     .usage('Usage: node $0 -u [url]')
-    .example('node $0 -u https://books.google.co.jp/books?id=xpto', 'download the available pages as pdf')
+    .example('node $0 -u https://books.google.co.il/books?id=kapafDRIvpcC&printsec=frontcover#v=onepage&q&f=false', 'download the available pages as pdf')
     .alias('u', 'url')
     .nargs('u', 1)
     .describe('u', 'Google books book URL')
@@ -47,8 +47,7 @@ function getOutputDir() {
 }
 
 async function downloadBook(url) {
-    const { query } = urlParse(url)
-    const { id: bookId } = querystring.decode(query.substring(1))
+    const bookId = url.split('&')[0].split('=')
 
     console.log(`Downloading pages for bookId: ${bookId}`)
     console.log(`Current work dir: ${process.cwd()}`)
@@ -177,11 +176,11 @@ async function getCurrentPage(driver) {
 
 async function getNavigationButtons(driver) {
     const { pageId, previousId, nextId } = await getButtonsSelectors(driver)
-    await driver.wait(until.elementLocated(By.id(nextId)))
+    await driver.wait(until.elementLocated(By.id(`${nextId}`)))
     try {
-        const pageButton = await driver.findElement(By.id(pageId))
-        const previousPageButton = await driver.findElement(By.id(previousId))
-        const nextPageButton = await driver.findElement(By.id(nextId))
+        const pageButton = await driver.findElement(By.id(`${pageId}`))
+        const previousPageButton = await driver.findElement(By.id(`${previousId}`))
+        const nextPageButton = await driver.findElement(By.id(`${nextId}`))
 
         return { pageButton, previousPageButton, nextPageButton }
     } catch (e) {
