@@ -13,7 +13,7 @@
     "fs-extra": "^9.0.0",
     "image-downloader": "^4.3.0",
     "pdfkit": "^0.15.0",
-    "selenium-webdriver": "^4.0.0-alpha.7",
+    "selenium-webdriver": "^4.34.0",
     "url-parse": "^1.5.9",
     "yargs": "^15.3.1"
   }
